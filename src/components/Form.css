@@ -1,0 +1,15 @@
+.FormLabel {
+  color: #550505;
+  display: block;
+  font-size: 16px;
+  padding: 12px 0 6px;
+}
+
+.FormRow {
+  text-align: left;
+}
+
+.FormRow input,
+.FormRow textarea {
+  width: 100%;
+}

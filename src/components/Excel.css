@@ -1,0 +1,71 @@
+.Excel table {
+	margin: 5vh auto;
+	border-collapse: collapse;
+	background-color: #87c5ff;
+}
+.Excel th{
+	cursor: pointer;
+	border: 3px solid #4158b3;
+	padding: 7px 15px;
+  text-align: center;
+}
+.Excel td {
+	border: 3px solid #4158b3;
+	padding: 7px 15px;
+  text-align: center;
+}
+
+.Excel input {
+	width: 100%;
+	background-color: #bce5f0;
+	padding: 5px 25px;
+	border-radius: 10px;
+	font-size: 18px;
+	outline: none;
+	transition: box-shadow .5s ease 0s;
+	text-align: center;
+}
+.Excel input:focus {
+	border: none;
+	box-shadow: 0 0 10px #783bdb;
+}
+.Excel .toolbar {
+	display: flex;
+	justify-content: center;
+	margin-top: 1.5%;
+}
+.Excel .toolbar > button {
+	padding: 5px 25px;
+	border: 2px solid #94d3e2;
+	border-radius: 10px;
+	background-color: #4158b3;
+	color: #FFF;
+	font-size: 18px;
+	font-weight: 600;
+}
+.Excel .ExcelNotSortable {
+  cursor: default;
+}
+
+.Excel .ExcelEditable {
+  cursor: cell;
+}
+
+.Excel .ExcelEditable:hover {
+  background: #FBFBFB;
+}
+.Excel .toolbar>button>a {
+	color: #FFF;
+}
+.Excel .ExcelDataCenter {
+  text-align: center;
+}
+
+.Excel .ExcelDataLeft {
+  padding: 0 10px;
+  text-align: left;
+}
+
+.Excel .ExcelDataRight {
+  text-align: right;
+}
