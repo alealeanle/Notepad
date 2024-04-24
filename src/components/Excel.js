@@ -1,7 +1,10 @@
-import {useState, useReducer, useRef} from 'react';
+import {useState, useRef, useContext, useEffect, useCallback} from 'react';
 import PropTypes from 'prop-types';
 import classNames from 'classnames';
 import clone from '../modules/clone';
+import schema from '../config/schema';
+import DataContext from '../contexts/DataContext';
+import RouteContext from '../contexts/RouteContext';
 
 import './Excel.css';
 import Actions from './Actions';
@@ -11,9 +14,9 @@ import Rating from './Rating';
 
 
 
-function reducer(data, action) {
-	if (action.type === 'sort') {
-		const {column, descending} = action.payload;
+function dataMangler(data, action, payload) {
+	if (action === 'sort') {
+		const {column, descending} = payload;
 		return data.sort((a, b) => {
 			if (a[column] === b[column]) {
 				return 0;
@@ -27,29 +30,27 @@ function reducer(data, action) {
 					: -1;
 		});
 	}
-	if (action.type === 'save') {
-		const {int, edit} = action.payload;
+	if (action === 'save') {
+		const {int, edit} = payload;
 		data[edit.row][edit.column] = int
-			? parseInt(action.payload.value, 10)
-			: action.payload.value;
+			? parseInt(payload.value, 10)
+			: payload.value;
 	}
-	if (action.type === 'delete') {
+	if (action === 'delete') {
 		data = clone(data);
-		data.splice(action.payload.rowidx, 1);
+		data.splice(payload.rowidx, 1);
 	}
-
-	if (action.type === 'saveForm') {
-		Array.from(action.payload.form.current).forEach(
-			(input) => (data[action.payload.rowidx][input.id] = input.value),
+	if (action === 'saveForm') {
+		Array.from(payload.form.current).forEach(
+			(input) => (data[payload.rowidx][input.id] = input.value),
 		);
 	}
-
-	setTimeout(() => action.payload.onDataChange(data));
 	return data;
 }
 
-export default function Excel({schema, initialData, onDataChange, filter}) {
-	const [data, dispatch] = useReducer(reducer, initialData);
+export default function Excel({filter}) {
+	const {data, updateData} = useContext(DataContext);
+	const {route, updateRoute} = useContext(RouteContext);
 	const [sorting, setSorting] = useState({
 		column: '',
 		descending: false,
@@ -65,7 +66,7 @@ export default function Excel({schema, initialData, onDataChange, filter}) {
 		}
 		const descending = sorting.column === column && !sorting.descending;
 		setSorting({column, descending});
-		dispatch({type: 'sort', payload: {column, descending}});
+		updateData(dataMangler(data, 'sort', {column, descending}));
 	}
 
 	function showEditor(e) {
@@ -83,74 +84,80 @@ export default function Excel({schema, initialData, onDataChange, filter}) {
 		e.preventDefault();
 		const value = e.target.firstChild.value;
 		const valueType = schema[e.target.parentNode.dataset.schema].type;
-		dispatch({
-			type: 'save',
-			payload: {
+		updateData(
+			dataMangler(data, 'save', {
 				edit,
 				value,
-				onDataChange,
+				updateData,
 				int: valueType === 'year' || valueType === 'rating',
-			},
-		});
-		setEdit(null);
+			}),
+		);
 	}
 
-	function handleAction(rowidx, type) {
-		if (type === 'delete') {
-			setDialog(
-				<Dialog
-					modal
-					header="Confirm deletion"
-					confirmLabel="Delete"
-					onAction={(action) => {
-						setDialog(null);
-						if (action === 'confirm') {
-							dispatch({
-								type: 'delete',
-								payload: {
+const handleAction = useCallback((rowidx, type) => {
+	if (type === 'delete') {
+		setDialog(
+			<Dialog
+				modal
+				header="Confirm deletion"
+				confirmLabel="Delete"
+				onAction={(action) => {
+					setDialog(null);
+					if (action === 'confirm') {
+						updateData(
+							dataMangler(data, 'delete', {
 									rowidx,
-									onDataChange,
-								},
-							});
-						}
-					}}>
-					{`Are you sure you want to delete "${data[rowidx].name}"?`}
-				</Dialog>,
-			);
-		}
-		const isEdit = type === 'edit';
-		if (type === 'info' || isEdit) {
-			const formPrefill = data[rowidx];
-			setDialog(
-				<Dialog
-					modal
-					extendedDismiss={!isEdit}
-					header={isEdit ? 'Edit item' : 'Item details'}
-					confirmLabel={isEdit ? 'Save' : 'ok'}
-					hasCancel={isEdit}
-					onAction={(action) => {
-						setDialog(null);
-						if (isEdit && action === 'confirm') {
-							dispatch({
-								type: 'saveForm',
-								payload: {
-									rowidx,
-									onDataChange,
-									form,
-								},
-							});
-						}
-					}}>
-					<Form
-						ref={form}
-						fields={schema}
-						initialData={formPrefill}
-						readonly={!isEdit}
-					/>
-				</Dialog>,
-			);
-		}
+									updateData,
+							}),
+						);
+					}
+				}}>
+				{`Are you sure you want to delete "${data[rowidx].name}"?`}
+			</Dialog>,
+		);
 	}
+	const isEdit = type === 'edit';
+	if (type === 'info' || isEdit) {
+		const formPrefill = data[rowidx];
+		updateRoute(type, rowidx + 1);
+		setDialog(
+			<Dialog
+				modal
+				extendedDismiss={!isEdit}
+				header={isEdit ? 'Edit item' : 'Item details'}
+				confirmLabel={isEdit ? 'Save' : 'ok'}
+				hasCancel={isEdit}
+				onAction={(action) => {
+					setDialog(null);
+					updateRoute();
+					if (isEdit && action === 'confirm') {
+						updateData(
+							dataMangler(data, 'saveForm', {
+								rowidx,
+								updateData,
+								form,
+							}),
+						);
+					}
+				}}>
+				<Form
+					ref={form}
+					fields={schema}
+					initialData={formPrefill}
+					readonly={!isEdit}
+				/>
+			</Dialog>,
+		);
+	}
+}, [data, updateData, updateRoute],);
+	
+useEffect(() => {
+	if (route.edit !== null && route.edit < data.length) {
+		handleAction(route.edit, 'edit');
+	} else if (route.info !== null && route.info < data.length) {
+		handleAction(route.info, 'info');
+	}
+}, [route, handleAction, data]);
 
 
 
